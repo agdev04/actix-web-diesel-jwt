@@ -12,6 +12,7 @@ pub mod guard;
 pub mod users;
 pub mod db;
 pub mod config;
+pub mod upload;
 
 
 

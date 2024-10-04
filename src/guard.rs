@@ -1,7 +1,7 @@
 
 
 use actix_web::{middleware::from_fn, web};
-use crate::users::route::user_config;
+use crate::{upload::route::upload_config, users::route::user_config};
 
 use std::env;
 
@@ -90,5 +90,6 @@ pub fn guard_config(cfg: &mut web::ServiceConfig) {
     web::scope("")
     .wrap(from_fn(get_middleware))
     .configure(user_config)
+    .configure(upload_config)
   );
 }
