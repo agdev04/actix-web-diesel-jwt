@@ -1,11 +1,8 @@
-use std::env;
-use actix_web::cookie::SameSite;
-use actix_web::{HttpMessage, HttpRequest, cookie::time::Duration};
-use actix_web::{web, HttpResponse, Result, cookie::Cookie, error};
-use argon2::{Argon2, PasswordHash, PasswordVerifier};
+use actix_web::{HttpMessage, HttpRequest};
+use actix_web::{web, HttpResponse, Result};
+use argon2::Argon2;
 use argon2::password_hash::SaltString;
 use argon2::password_hash::rand_core::OsRng;
-use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use crate::{db::establish_connection, users::model::{NewUser, UpdateUser, User}, schema::users};
@@ -18,33 +15,11 @@ pub struct GenericResponse {
   pub message: String,
 }
 
-use jsonwebtoken::{encode, Header, EncodingKey};
-
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Claims {
     pub sub: String,
     pub company: String,
     pub exp: usize,
-}
-
-async fn create_token(user_id: i32) -> Result<String, actix_web::Error> {
-    let expiration = Utc::now()
-        .checked_add_signed(chrono::Duration::seconds(3600))
-        .expect("valid timestamp")
-        .timestamp();
-    
-    let my_claims = Claims {
-        sub: "someone".to_owned(),
-        company: user_id.to_string(),
-        exp: expiration as usize,
-    };
-
-    let key = env::var("AUTH_TOKEN").unwrap_or_else(|_| "secret_token".to_string());
-
-    let token = encode(&Header::default(), &my_claims, &EncodingKey::from_secret(key.as_bytes()))
-        .map_err(|e| actix_web::error::ErrorInternalServerError(e))?;
-    
-    Ok(token)
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -56,63 +31,11 @@ pub struct LoginUser {
 pub fn hash_password(password: String) -> Result<String, actix_web::Error> {
     let salt = SaltString::generate(&mut OsRng);
     let argon2 = Argon2::default();
-
+  
     let hash_result = argon2.hash_password(password.as_bytes(), &salt)
         .map_err(|e| actix_web::error::ErrorInternalServerError(e))?;
     Ok(hash_result.to_string())
-}
-
-pub async fn logout() -> Result<HttpResponse> {
-    let cookie = Cookie::build("jwt", "")
-        .http_only(true)
-        .secure(false)
-        .max_age(Duration::seconds(-3600))
-        .path("/")
-        .finish();
-
-    Ok(HttpResponse::Ok()
-        .cookie(cookie)
-        .body("Logged out successfully!"))
-}
-
-pub async fn login(user: web::Json<LoginUser>) -> Result<HttpResponse> {
-
-    let mut connection = establish_connection();
-    let user_query = users::table.filter(users::email.eq(&user.email)).first(&mut connection);
-
-    let user_result: User = match user_query {
-        Ok(user) => user,
-        Err(_) => return Ok(HttpResponse::Unauthorized().json(GenericResponse {
-            status: "fail".to_string(),
-            message: "Invalid email or password".to_string(),
-        })),
-    };
-
-    let argon2 = Argon2::default();
-    let db_hash = PasswordHash::new(&user_result.password).map_err(|e| actix_web::error::ErrorInternalServerError(e))?;
-
-    argon2.verify_password(user.password.as_bytes(), &db_hash)
-        .map_err(|_| error::ErrorUnauthorized("Invalid email or password"))?;
-
-    let token = create_token(user_result.id).await?;
-    
-    let cookie = Cookie::build("jwt", token)
-        .http_only(true)
-        .secure(false)
-        .same_site(SameSite::Lax)
-        .path("/")
-        .finish();
-
-    let mut response = HttpResponse::Ok().json(json!({
-        "status": "success",
-        "message": "User logged in successfully"
-    }));
-
-    response.add_cookie(&cookie)?;
-
-    Ok(response)
-  
-}
+  }
 
 pub async fn create_user(new_user: web::Json<NewUser>) -> Result<HttpResponse> {
   let mut connection = establish_connection();
