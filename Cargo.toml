@@ -1,0 +1,20 @@
+[package]
+name = "actix-web-diesel-jwt"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+actix-cors = "0.7.0"
+actix-web = { version = "4.9.0" }
+diesel = { version = "2.2.0", features = ["postgres"] }
+diesel_migrations = "2.0"
+dotenv = "0.15.0"
+env_logger = "0.11.5"
+serde = { version = "1.0.210", features = ["derive"] }
+cargo-watch = "8.5.2"
+sha2 = "0.10.8"
+jsonwebtoken = "9.3.0"
+chrono = { version = "0.4.38", features = ["serde"] }
+argon2 = "0.5.3"
+rand = "0.8"
+serde_json = "1.0.128"
